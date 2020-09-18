@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: gem-install
+spec:
+  steps:
+    - name: gem-install
+      image: tsterk/ruby:2.7-build
+      script: |
+        export GEM_PATH=$(workspaces.ruby-build.path)/lib
+        echo $GEM_PATH
+        cd $(workspaces.ruby-build.path)/html && bundle install
+  workspaces:
+    - name: ruby-build

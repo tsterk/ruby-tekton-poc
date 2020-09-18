@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: ls
+spec:
+  steps:
+    - name: ls
+      image: npohosting/base:3.11
+      script: |
+        ls -l $(workspaces.ruby-build.path)/html
+        ls -l $(workspaces.ruby-build.path)/lib
+        rm -rf $(workspaces.ruby-build.path)/html $(workspaces.ruby-build.path)/lib
+  workspaces:
+    - name: ruby-build

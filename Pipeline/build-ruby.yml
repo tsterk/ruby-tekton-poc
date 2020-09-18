@@ -1,0 +1,54 @@
+#
+# Build and deploy ruby applications
+#
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-and-deploy-ruby
+spec:
+  workspaces: 
+    - name: shared-workspace
+  tasks:
+    # Make sure the right directory's exist
+    - name: setup-env
+      taskRef:
+        name: setup-env
+        kind: Task
+      workspaces:
+        - name: ruby-build
+          workspace: shared-workspace
+    # Clone repository
+    - name: git-clone
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: https://github.com/tsterk/ror-sample.git
+        - name: subdirectory
+          value: html
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+      runAfter: 
+        - setup-env
+    # Install gems
+    - name: gem-install
+      taskRef:
+        name: gem-install
+        kind: Task
+      workspaces:
+        - name: ruby-build
+          workspace: shared-workspace
+      runAfter:
+        - git-clone
+    # Just for me to check something
+    - name: ls
+      taskRef:
+        name: ls
+        kind: Task
+      workspaces:
+        - name: ruby-build
+          workspace: shared-workspace
+      runAfter:
+        - gem-install
