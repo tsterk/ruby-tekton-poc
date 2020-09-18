@@ -42,13 +42,35 @@ spec:
           workspace: shared-workspace
       runAfter:
         - git-clone
-    # Just for me to check something
-    - name: ls
+    # Create a couple of files as dirty hacks
+    - name: create-files
       taskRef:
-        name: ls
+        name: create-files
         kind: Task
       workspaces:
         - name: ruby-build
           workspace: shared-workspace
       runAfter:
+        - git-clone
+    # Build runtime image
+    - name: build-ruby-run
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      params:
+        - name: IMAGE
+          value: image-registry.openshift-image-registry.svc:5000/hens-ruby-tekton-poc/myapp
+        - name: DOCKERFILE
+          value: $(workspaces.source.path)/Dockerfile
+        - name: CONTEXT
+          value: $(workspaces.source.path)
+        - name: FORMAT
+          value: docker
+        - name: TLSVERIFY
+          value: "false"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
         - gem-install
+        - create-files

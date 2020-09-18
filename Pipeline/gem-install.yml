@@ -6,9 +6,15 @@ spec:
   steps:
     - name: gem-install
       image: tsterk/ruby:2.7-build
+      env:
+        - name: GEM_HOME
+          value: "$(workspaces.ruby-build.path)/lib"
+        - name: BUNDLE_PATH
+          value: "$(workspaces.ruby-build.path)/lib"
+        - name: BUNDLE_APP_CONFIG
+          value: "$(workspaces.ruby-build.path)/lib"
       script: |
-        export GEM_PATH=$(workspaces.ruby-build.path)/lib
-        echo $GEM_PATH
+        env
         cd $(workspaces.ruby-build.path)/html && bundle install
   workspaces:
     - name: ruby-build
