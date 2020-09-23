@@ -8,8 +8,28 @@ metadata:
 spec:
   workspaces: 
     - name: shared-workspace
+  params:
+    - name: NAMESPACE
+      type: string
+      description: Namespace where the pipeline runs
+    - name: NAME
+      type: string
+      description: Name of the app
+      default: "myapp"
+    - name: TAG
+      type: string
+      description: Tag of the image
+      default: "dev"
+    - name: RUBY_VERSION
+      type: string
+      description: Which version of Ruby to use
+      default: "2.7"
+    - name: GIT_URL
+      type: string
+      description: Git url to clone
+      default: "https://github.com/tsterk/ror-sample.git"
   tasks:
-    # Make sure the right directory's exist
+    # Make sure the right directory's exist and everything is clean
     - name: setup-env
       taskRef:
         name: setup-env
@@ -24,7 +44,7 @@ spec:
         kind: ClusterTask
       params:
         - name: url
-          value: https://github.com/tsterk/ror-sample.git
+          value: $(params.GIT_URL)
         - name: subdirectory
           value: html
       workspaces:
@@ -32,11 +52,14 @@ spec:
           workspace: shared-workspace
       runAfter: 
         - setup-env
-    # Install gems
+    # Run bundle install in build container
     - name: gem-install
       taskRef:
         name: gem-install
         kind: Task
+      params:
+        - name: RUBY_VERSION
+          value: $(params.RUBY_VERSION)
       workspaces:
         - name: ruby-build
           workspace: shared-workspace
@@ -47,6 +70,9 @@ spec:
       taskRef:
         name: create-files
         kind: Task
+      params:
+        - name: RUBY_VERSION
+          value: $(params.RUBY_VERSION)        
       workspaces:
         - name: ruby-build
           workspace: shared-workspace
@@ -59,7 +85,7 @@ spec:
         kind: ClusterTask
       params:
         - name: IMAGE
-          value: image-registry.openshift-image-registry.svc:5000/hens-ruby-tekton-poc/myapp
+          value: image-registry.openshift-image-registry.svc:5000/$(params.NAMESPACE)/$(params.NAME):$(params.TAG)
         - name: DOCKERFILE
           value: $(workspaces.source.path)/Dockerfile
         - name: CONTEXT

@@ -3,6 +3,10 @@ kind: Task
 metadata:
   name: create-files
 spec:
+  params:
+    - name: RUBY_VERSION
+      description: Which version of Ruby to use
+      type: string
   steps:
     - name: startfile
       image: npohosting/base:3.11
@@ -10,7 +14,6 @@ spec:
         cat <<EOF >$(workspaces.ruby-build.path)/run-app
         #!/bin/sh
 
-        gem install rack
         exec rackup -p /tmp/rack-custom.pid --host 0.0.0.0 --port 3000
         EOF
 
@@ -19,7 +22,7 @@ spec:
       image: npohosting/base:3.11
       script: |
         cat <<EOF >$(workspaces.ruby-build.path)/Dockerfile
-        FROM tsterk/ruby:2.7-run
+        FROM tsterk/ruby:$(params.RUBY_VERSION)-run
 
         COPY html/ /var/www/html
         COPY lib/ /var/www/lib

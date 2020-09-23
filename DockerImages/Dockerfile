@@ -129,3 +129,5 @@ RUN mkdir -p "$GEM_HOME" && chmod 777 "$GEM_HOME"
 EXPOSE 3000
 WORKDIR /var/www/html
 USER 1001
+
+CMD ["/tmp/run-app"]
