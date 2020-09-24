@@ -15,11 +15,10 @@ spec:
     - name: NAME
       type: string
       description: Name of the app
-      default: "myapp"
     - name: TAG
       type: string
       description: Tag of the image
-      default: "dev"
+      default: "latest"
     - name: RUBY_VERSION
       type: string
       description: Which version of Ruby to use
@@ -27,7 +26,7 @@ spec:
     - name: GIT_URL
       type: string
       description: Git url to clone
-      default: "https://github.com/tsterk/ror-sample.git"
+      default: "https://github.com/sclorg/ruby-ex.git"
   tasks:
     # Make sure the right directory's exist and everything is clean
     - name: setup-env

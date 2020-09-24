@@ -1,0 +1,140 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-ruby
+spec:
+  params:
+  # General
+    - name: NAME
+      description: Name of the app
+    - name: NAMESPACE
+      description: Namespace where the app runs
+  # Build params
+    - name: RUBY_VERSION
+      description: Version of the Ruby app, default "2.7"
+      default: "2.7"
+  # Image params
+    - name: IMAGE_TAG
+      description: Tag of the image, default "latest"
+      default: "latest"
+  # Git params
+    - name: GIT_URL
+      description: URL of the git repository
+      default: "https://github.com/sclorg/ruby-ex.git"
+    - name: GIT_REVISION
+      description: Git revision
+      default: "master"
+    - name: GIT_SUBDIR
+      description: Subdirectory to clone in
+      default: "html"
+  steps:
+    # Create html and lib directory.
+    - name: create-dirs
+      image: npohosting/base:3.11      
+      script: |
+        mkdir -v $(workspaces.ruby-build.path)/html
+        mkdir -v $(workspaces.ruby-build.path)/lib
+
+        chmod 777 $(workspaces.ruby-build.path)/html
+        chmod 777 $(workspaces.ruby-build.path)/lib      
+    # Clone the repository.
+    - name: git-clone
+      image: registry.redhat.io/openshift-pipelines-tech-preview/pipelines-git-init-rhel8@sha256:7094b90d8cadeb14af7a8379b24383c3a39cdcb1022320a6795c499456b263db
+      script: |
+        CHECKOUT_DIR="$(workspaces.ruby-build.path)/$(params.GIT_SUBDIR)"
+
+        /ko-app/git-init \
+          -url "$(params.GIT_URL)" \
+          -revision "$(params.GIT_REVISION)" \
+          -path "$CHECKOUT_DIR" 
+        cd "$CHECKOUT_DIR"
+        RESULT_SHA="$(git rev-parse HEAD | tr -d '\n')"
+        EXIT_CODE="$?"
+        if [ "$EXIT_CODE" != 0 ]
+        then
+          exit $EXIT_CODE
+        fi
+        echo -n "$RESULT_SHA"
+    # Run gem-install
+    - name: gem-install
+      image: tsterk/ruby:$(params.RUBY_VERSION)-build
+      resources:
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+      env:
+        - name: GEM_HOME
+          value: "$(workspaces.ruby-build.path)/lib"
+        - name: BUNDLE_PATH
+          value: "$(workspaces.ruby-build.path)/lib"
+        - name: BUNDLE_APP_CONFIG
+          value: "$(workspaces.ruby-build.path)/lib"
+      script: |
+        cd $(workspaces.ruby-build.path)/html && bundle install && gem install rack
+    # Create some files
+    - name: create-dockerfile
+      image: npohosting/base:3.11      
+      script: |
+        echo "FIXME: Nog eens vervangen door s2i"
+        cat <<EOF >$(workspaces.ruby-build.path)/Dockerfile
+        FROM tsterk/ruby:$(params.RUBY_VERSION)-run
+
+        COPY html/ /var/www/html
+        COPY lib/ /var/www/lib
+        EOF
+
+        cat $(workspaces.ruby-build.path)/Dockerfile
+    - name: create-startup-file    
+      image: npohosting/base:3.11
+      script: |
+        cat <<EOF >$(workspaces.ruby-build.path)/html/run-app
+        #!/bin/sh
+
+        exec rackup -p /tmp/rack-custom.pid --host 0.0.0.0 --port 3000
+        EOF
+
+        chmod a+x $(workspaces.ruby-build.path)/html/run-app    
+    # Build and push the final image
+    - name: build-image
+      image: registry.redhat.io/rhel8/buildah
+      script: |
+        buildah \
+          --storage-driver=overlay \
+          bud \
+          --format=docker \
+          --tls-verify=false \
+          --no-cache \
+          -f ./Dockerfile \
+          -t $(params.NAME):$(params.IMAGE_TAG) \
+          $(workspaces.ruby-build.path)
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - mountPath: /var/lib/containers
+          name: varlibcontainers
+      workingDir: $(workspaces.ruby-build.path)
+    - name: push-image
+      image: registry.redhat.io/rhel8/buildah
+      resources:
+        limits:
+          cpu: "500m"
+          memory: "512Mi"      
+      script: |
+        buildah \
+          --storage-driver=overlay \
+          push \
+          --tls-verify=false \
+          --digestfile $(workspaces.ruby-build.path)image-digest \
+          $(params.NAME):$(params.IMAGE_TAG) \
+          docker://image-registry.openshift-image-registry.svc:5000/$(params.NAMESPACE)/$(params.NAME):$(params.IMAGE_TAG)
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - mountPath: /var/lib/containers
+          name: varlibcontainers
+      workingDir: $(workspaces.ruby-build.path)
+  volumes:
+    - emptyDir: {}
+      name: varlibcontainers
+  workspaces:
+    - name: ruby-build

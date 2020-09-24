@@ -1,19 +1,29 @@
-#
-# This tasks creates a PVC with a html and lib directory
-#
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: setup-env
 spec:
   steps:
+    - name: cleanup-pvc
+      image: npohosting/base:3.11
+      script: |
+        if [ -d $(workspaces.ruby-build.path)/html ]; 
+        then
+          rm -rf $(workspaces.ruby-build.path)/html
+        fi
+
+        if [ -d $(workspaces.ruby-build.path)/lib ];
+        then
+          rm -rf $(workspaces.ruby-build.path)/lib
+        fi
+
+        if [ -f $(workspaces.ruby-build.path)/Dockerfile ];
+        then
+          rm -rf $(workspaces.ruby-build.path)/Dockerfile
+        fi
     - name: create-dir
       image: npohosting/base:3.11
       script: |
-        rm -rf $(workspaces.ruby-build.path)/html
-        rm -rf $(workspaces.ruby-build.path)/lib
-        rm -rf $(workspaces.ruby-build.path)/Dockerfile
-
         mkdir -v $(workspaces.ruby-build.path)/html
         mkdir -v $(workspaces.ruby-build.path)/lib
   workspaces:

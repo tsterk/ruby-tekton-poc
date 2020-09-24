@@ -1,0 +1,15 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: mytask
+spec:
+  steps:
+    - name: echosomething
+      image: ubuntu
+      command: ["bash", "-c"]
+      args: ["echo 'foo'"]
+      resources:
+        limits:
+          cpu: 1000m
+
+          
